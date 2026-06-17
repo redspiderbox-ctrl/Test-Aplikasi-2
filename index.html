@@ -1,1 +1,725 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServiceElektronik Pro - Sistem Manajemen Service</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { 'display': ['Space Grotesk', 'sans-serif'], 'mono': ['JetBrains Mono', 'monospace'] } } } }
+    </script>
+    <style>
+        /* ===== CSS VARIABLES DARK/LIGHT ===== */
+        :root, [data-theme="dark"] {
+            --bg:#080D19;--bg2:#0E1525;--card:#131B2E;--card2:#192236;--border:#1F2D47;
+            --text:#E2E8F0;--muted:#64748B;--accent:#10B981;--accent2:#34D399;
+            --warn:#F59E0B;--danger:#EF4444;--info:#06B6D4;
+            --input-bg:#080D19;--receipt-bg:#fff;--receipt-text:#111;
+            --shadow:0 8px 30px rgba(0,0,0,0.3);
+        }
+        [data-theme="light"] {
+            --bg:#F1F5F9;--bg2:#FFFFFF;--card:#FFFFFF;--card2:#F8FAFC;--border:#E2E8F0;
+            --text:#0F172A;--muted:#64748B;--accent:#059669;--accent2:#10B981;
+            --warn:#D97706;--danger:#DC2626;--info:#0891B2;
+            --input-bg:#F8FAFC;--receipt-bg:#fff;--receipt-text:#111;
+            --shadow:0 4px 12px rgba(0,0,0,0.08);
+        }
 
+        * { box-sizing:border-box;margin:0;padding:0; }
+        body { font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;transition:background 0.3s,color 0.3s; }
+        ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:var(--bg2); } ::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; } ::-webkit-scrollbar-thumb:hover { background:var(--accent); }
+
+        /* ===== LOGIN PAGE ===== */
+        #loginPage { position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity 0.4s; }
+        #loginPage.hidden { opacity:0;pointer-events:none; }
+        .login-box { background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;width:90%;max-width:420px;box-shadow:var(--shadow); }
+        .login-box h1 { font-size:28px;font-weight:700;text-align:center;margin-bottom:6px; }
+        .login-box p.sub { text-align:center;color:var(--muted);font-size:14px;margin-bottom:28px; }
+
+        /* ===== APP LAYOUT ===== */
+        #appLayout { display:none; }
+        #appLayout.show { display:block; }
+        .sidebar { width:270px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);position:fixed;left:0;top:0;z-index:50;transition:transform 0.3s ease,background 0.3s; }
+        .main-content { margin-left:270px;min-height:100vh;transition:background 0.3s; }
+        .nav-item { display:flex;align-items:center;gap:12px;padding:11px 20px;margin:3px 12px;border-radius:10px;cursor:pointer;transition:all 0.2s ease;color:var(--muted);font-weight:500;font-size:14px; }
+        .nav-item:hover { background:rgba(16,185,129,0.08);color:var(--text); }
+        .nav-item.active { background:rgba(16,185,129,0.15);color:var(--accent);box-shadow:inset 3px 0 0 var(--accent); }
+        .nav-item i { width:20px;text-align:center;font-size:15px; }
+        .stat-card { background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;transition:all 0.25s ease;position:relative;overflow:hidden; }
+        .stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);opacity:0;transition:opacity 0.25s; }
+        .stat-card:hover { border-color:var(--accent);transform:translateY(-2px); } .stat-card:hover::before { opacity:1; }
+        .data-card { background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:background 0.3s,border-color 0.3s; }
+        .btn-primary { background:var(--accent);color:#fff;padding:10px 22px;border-radius:10px;border:none;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;font-family:inherit;display:inline-flex;align-items:center;gap:8px; }
+        .btn-primary:hover { background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 15px rgba(16,185,129,0.3); }
+        .btn-secondary { background:var(--card2);color:var(--text);padding:10px 22px;border-radius:10px;border:1px solid var(--border);font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;font-family:inherit;display:inline-flex;align-items:center;gap:8px; }
+        .btn-secondary:hover { border-color:var(--accent); }
+        .btn-danger { background:rgba(239,68,68,0.15);color:var(--danger);padding:8px 16px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);font-weight:500;font-size:13px;cursor:pointer;transition:all 0.2s;font-family:inherit; }
+        .btn-danger:hover { background:rgba(239,68,68,0.25); }
+        .btn-sm { padding:6px 14px;font-size:12px;border-radius:7px; }
+        .btn-warn { background:rgba(245,158,11,0.15);color:var(--warn);padding:6px 14px;border-radius:7px;border:1px solid rgba(245,158,11,0.3);font-weight:500;font-size:12px;cursor:pointer;transition:all 0.2s;font-family:inherit; }
+        .btn-warn:hover { background:rgba(245,158,11,0.25); }
+        .btn-info { background:rgba(6,182,212,0.15);color:var(--info);padding:10px 22px;border-radius:10px;border:1px solid rgba(6,182,212,0.3);font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;font-family:inherit;display:inline-flex;align-items:center;gap:8px; }
+        .btn-info:hover { background:rgba(6,182,212,0.25);transform:translateY(-1px); }
+        .btn-info-sm { background:rgba(6,182,212,0.15);color:var(--info);padding:6px 14px;border-radius:7px;border:1px solid rgba(6,182,212,0.3);font-weight:500;font-size:12px;cursor:pointer;transition:all 0.2s;font-family:inherit; }
+        .btn-info-sm:hover { background:rgba(6,182,212,0.25); }
+        .btn-disabled { background:rgba(100,116,139,0.1);color:rgba(100,116,139,0.4);padding:6px 14px;border-radius:7px;border:1px solid rgba(100,116,139,0.15);font-weight:500;font-size:12px;cursor:not-allowed;font-family:inherit; }
+        .form-input { width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;font-family:inherit;transition:border-color 0.2s,background 0.3s;outline:none; }
+        .form-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(16,185,129,0.1); }
+        .form-input::placeholder { color:var(--muted); }
+        .form-label { display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px; }
+        select.form-input { appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px; }
+        .badge { padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;display:inline-block; }
+        .badge-masuk { background:rgba(6,182,212,0.15);color:#06B6D4; } .badge-diperiksa { background:rgba(245,158,11,0.15);color:#F59E0B; } .badge-proses { background:rgba(139,92,246,0.15);color:#A78BFA; } .badge-selesai { background:rgba(16,185,129,0.15);color:#10B981; } .badge-diambil { background:rgba(100,116,139,0.15);color:#94A3B8; }
+        table { width:100%;border-collapse:collapse; }
+        thead th { background:var(--bg2);padding:12px 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);text-align:left;border-bottom:1px solid var(--border); }
+        tbody td { padding:12px 16px;font-size:13px;border-bottom:1px solid rgba(31,45,71,0.3);vertical-align:middle; }
+        tbody tr { transition:background 0.15s; } tbody tr:hover { background:rgba(16,185,129,0.04); }
+        .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s; }
+        .modal-overlay.show { opacity:1;pointer-events:all; }
+        .modal-box { background:var(--card);border:1px solid var(--border);border-radius:16px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto;transform:translateY(20px);transition:transform 0.25s; }
+        .modal-overlay.show .modal-box { transform:translateY(0); }
+        .toast-container { position:fixed;top:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px; }
+        .toast { padding:14px 20px;border-radius:10px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px;animation:slideIn 0.3s ease,fadeOut 0.3s ease 2.7s;min-width:280px;box-shadow:var(--shadow); }
+        .toast-success { background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.3);color:var(--accent2); }
+        .toast-error { background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#F87171; }
+        .toast-info { background:rgba(6,182,212,0.2);border:1px solid rgba(6,182,212,0.3);color:#22D3EE; }
+        @keyframes slideIn { from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1} }
+        @keyframes fadeOut { from{opacity:1}to{opacity:0} }
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.5} }
+        .page-section { display:none;animation:pageIn 0.3s ease; } .page-section.active { display:block; }
+        @keyframes pageIn { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
+        @media (max-width:768px) { .sidebar{transform:translateX(-100%);} .sidebar.open{transform:translateX(0);} .main-content{margin-left:0;} .mobile-toggle{display:flex!important;} }
+        .mobile-toggle { display:none!important; }
+        .receipt-box { background:var(--receipt-bg);color:var(--receipt-text);padding:30px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;max-width:350px;margin:0 auto; }
+        .receipt-box h3 { text-align:center;font-size:16px;margin-bottom:4px; }
+        .receipt-box .divider { border-top:1px dashed #555;margin:10px 0; }
+        @media print { body * { visibility:hidden!important; } .print-receipt,.print-receipt * { visibility:visible!important; } .print-receipt { position:absolute;left:0;top:0;width:100%;background:#fff!important;padding:0!important;margin:0!important; } .receipt-box { max-width:100%!important;border-radius:0!important;margin:0!important;padding:20px!important; } .no-print { display:none!important; } }
+
+        /* ===== THEME TOGGLE ===== */
+        .theme-toggle { width:52px;height:28px;border-radius:14px;background:var(--border);position:relative;cursor:pointer;transition:background 0.3s;border:none; }
+        .theme-toggle::after { content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--accent);transition:transform 0.3s; }
+        [data-theme="light"] .theme-toggle::after { transform:translateX(24px); }
+        .theme-toggle i { position:absolute;top:50%;transform:translateY(-50%);font-size:12px; }
+        .theme-toggle .fa-moon { left:8px;color:#94A3B8; }
+        .theme-toggle .fa-sun { right:8px;color:#F59E0B;opacity:0.3;transition:opacity 0.3s; }
+        [data-theme="light"] .theme-toggle .fa-moon { opacity:0.3; }
+        [data-theme="light"] .theme-toggle .fa-sun { opacity:1; }
+    </style>
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ===== LOGIN PAGE ===== -->
+    <div id="loginPage">
+        <div class="login-box">
+            <div class="flex justify-center mb-4"><div class="w-16 h-16 rounded-2xl flex items-center justify-center" style="background:rgba(16,185,129,0.15)"><i class="fas fa-bolt" style="color:var(--accent);font-size:32px"></i></div></div>
+            <h1>ServicePro</h1>
+            <p class="sub">Masuk ke Sistem Manajemen Service</p>
+            <form id="loginForm" onsubmit="return handleLogin(event)" class="space-y-4">
+                <div><label class="form-label">Username</label><input type="text" class="form-input" id="loginUser" placeholder="Masukkan username" required autocomplete="username"></div>
+                <div><label class="form-label">Password</label><input type="password" class="form-input" id="loginPass" placeholder="Masukkan password" required autocomplete="current-password"></div>
+                <p id="loginError" class="text-sm hidden" style="color:var(--danger)"><i class="fas fa-exclamation-circle mr-1"></i>Username atau password salah</p>
+                <button type="submit" class="btn-primary w-full justify-center text-base py-3"><i class="fas fa-right-to-bracket"></i> Masuk</button>
+            </form>
+            <p class="text-center text-xs mt-5" style="color:var(--muted)">By : Gregorius Berlin</p>
+        </div>
+    </div>
+
+    <!-- ===== APP LAYOUT ===== -->
+    <div id="appLayout">
+        <aside class="sidebar" id="sidebar">
+            <div class="p-6 border-b" style="border-color:var(--border)"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(16,185,129,0.15)"><i class="fas fa-bolt" style="color:var(--accent);font-size:18px"></i></div><div><h1 class="text-base font-bold" style="color:var(--text)">ServicePro</h1><p class="text-xs" style="color:var(--muted)">Elektronik Management</p></div></div></div>
+            <nav class="py-4">
+                <p class="px-8 py-2 text-xs font-semibold uppercase tracking-wider" style="color:var(--muted);opacity:0.5">Menu Utama</p>
+                <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><i class="fas fa-chart-pie"></i> Dashboard</div>
+                <div class="nav-item" data-page="terima" onclick="navigate('terima')"><i class="fas fa-box-open"></i> Terima Barang</div>
+                <div class="nav-item" data-page="daftar" onclick="navigate('daftar')"><i class="fas fa-list-check"></i> Daftar Barang Service</div>
+                <div class="nav-item" data-page="pengambilan" onclick="navigate('pengambilan')"><i class="fas fa-hand-holding"></i> Pengambilan Barang</div>
+                <p class="px-8 py-2 mt-3 text-xs font-semibold uppercase tracking-wider" style="color:var(--muted);opacity:0.5">Pengaturan</p>
+                <div class="nav-item" data-page="jenis" onclick="navigate('jenis')"><i class="fas fa-tags"></i> Jenis &amp; Biaya Service</div>
+                <div class="nav-item" data-page="stok" onclick="navigate('stok')"><i class="fas fa-warehouse"></i> Stok Sparepart</div>
+                <p class="px-8 py-2 mt-3 text-xs font-semibold uppercase tracking-wider" style="color:var(--muted);opacity:0.5">Laporan</p>
+                <div class="nav-item" data-page="riwayat" onclick="navigate('riwayat')"><i class="fas fa-clock-rotate-left"></i> Riwayat Service</div>
+                <div class="nav-item" data-page="laporan" onclick="navigate('laporan')"><i class="fas fa-file-invoice-dollar"></i> Laporan</div>
+            </nav>
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t" style="border-color:var(--border)">
+                <div class="flex items-center justify-between px-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:rgba(16,185,129,0.2);color:var(--accent)" id="userAvatar">AD</div>
+                        <div><p class="text-xs font-semibold" style="color:var(--text)" id="userDisplayName">Admin</p><p class="text-xs" style="color:var(--muted)">Operator</p></div>
+                    </div>
+                    <button onclick="handleLogout()" title="Keluar" style="color:var(--muted);font-size:16px;background:none;border:none;cursor:pointer;transition:color 0.2s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'"><i class="fas fa-right-from-bracket"></i></button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="sticky top-0 z-40 px-8 py-4 flex items-center justify-between" style="background:color-mix(in srgb, var(--bg) 85%, transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)">
+                <div class="flex items-center gap-4"><button class="mobile-toggle items-center justify-center w-10 h-10 rounded-lg" style="background:var(--card);border:1px solid var(--border)" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fas fa-bars" style="color:var(--muted)"></i></button><h2 class="text-lg font-bold" id="pageTitle">Dashboard</h2></div>
+                <div class="flex items-center gap-4">
+                    <!-- Theme Toggle -->
+                    <button class="theme-toggle" onclick="toggleTheme()" title="Ganti Tema" aria-label="Ganti tema terang/gelap">
+                        <i class="fas fa-moon"></i><i class="fas fa-sun"></i>
+                    </button>
+                    <span class="text-xs font-mono px-3 py-1 rounded-full" style="background:rgba(16,185,129,0.1);color:var(--accent)" id="clockDisplay">--:--:--</span>
+                    <div class="w-2 h-2 rounded-full" style="background:var(--accent);animation:pulse 2s infinite"></div>
+                </div>
+            </header>
+
+            <div class="p-8">
+                <!-- Dashboard Section -->
+                <section class="page-section active" id="page-dashboard">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8" id="dashStats"></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                        <div class="lg:col-span-2 data-card">
+                            <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Pendapatan 7 Hari Terakhir</h3></div>
+                            <div class="p-5"><canvas id="revenueChart" height="220"></canvas></div>
+                        </div>
+                        <div class="data-card">
+                            <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Distribusi Status Service</h3></div>
+                            <div class="p-5"><canvas id="statusChart" height="220"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="data-card mt-5">
+                        <div class="p-5 border-b flex items-center justify-between" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Service Terbaru</h3><button class="btn-secondary btn-sm" onclick="navigate('daftar')">Lihat Semua <i class="fas fa-arrow-right ml-1"></i></button></div>
+                        <div class="overflow-x-auto"><table><thead><tr><th>No. Service</th><th>Pelanggan</th><th>Barang</th><th>Status</th><th>Tanggal</th></tr></thead><tbody id="dashRecentTable"></tbody></table></div>
+                    </div>
+                </section>
+
+                <!-- Terima Barang Section -->
+                <section class="page-section" id="page-terima">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 data-card">
+                            <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold">Form Penerimaan Barang</h3><p class="text-xs mt-1" style="color:var(--muted)">Isi data barang yang diterima untuk service</p></div>
+                            <form id="formTerima" class="p-5 space-y-4" onsubmit="return simpanTerima(event)">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="form-label">Nama Pelanggan</label><input type="text" class="form-input" id="tNama" placeholder="Nama lengkap" required></div>
+                                    <div><label class="form-label">No. Telepon</label><input type="tel" class="form-input" id="tTelp" placeholder="08xxxxxxxxxx" required></div>
+                                </div>
+                                <div><label class="form-label">Alamat</label><textarea class="form-input" id="tAlamat" rows="2" placeholder="Alamat lengkap pelanggan..." required></textarea></div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="form-label">Jenis Barang</label><select class="form-input" id="tJenis" required><option value="">Pilih jenis barang</option></select></div>
+                                    <div><label class="form-label">Merek / Model</label><input type="text" class="form-input" id="tMerek" placeholder="Contoh: Samsung UA43" required></div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="form-label">Type</label><input type="text" class="form-input" id="tType" placeholder="Contoh: UA43T6500AKXXD" required></div>
+                                    <div><label class="form-label">No. Seri</label><input type="text" class="form-input" id="tSeri" placeholder="SN perangkat"></div>
+                                </div>
+                                <div><label class="form-label">Keluhan / Masalah</label><textarea class="form-input" id="tKeluhan" rows="3" placeholder="Deskripsikan keluhan pelanggan..." required></textarea></div>
+                                <div><label class="form-label">Kelengkapan Barang</label><input type="text" class="form-input" id="tKelengkapan" placeholder="Contoh: Charger, Remote, Kabel HDMI" required></div>
+                                <div><label class="form-label">Estimasi Biaya (Rp)</label><input type="number" class="form-input" id="tEstimasi" placeholder="0" min="0"></div>
+                                <div class="pt-2 flex gap-3"><button type="submit" class="btn-primary"><i class="fas fa-check"></i> Simpan & Terima</button><button type="reset" class="btn-secondary">Reset</button></div>
+                            </form>
+                        </div>
+                        <div>
+                            <div class="data-card mb-5">
+                                <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Panduan Singkat</h3></div>
+                                <div class="p-5 space-y-4 text-sm" style="color:var(--muted)">
+                                    <div class="flex gap-3"><div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold" style="background:rgba(16,185,129,0.15);color:var(--accent)">1</div><p>Isi data pelanggan dan barang dengan lengkap</p></div>
+                                    <div class="flex gap-3"><div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold" style="background:rgba(16,185,129,0.15);color:var(--accent)">2</div><p>Pilih jenis barang sesuai kategori yang tersedia</p></div>
+                                    <div class="flex gap-3"><div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold" style="background:rgba(16,185,129,0.15);color:var(--accent)">3</div><p>Cantumkan kelengkapan barang yang diterima</p></div>
+                                    <div class="flex gap-3"><div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold" style="background:rgba(16,185,129,0.15);color:var(--accent)">4</div><p>Bukti titip bisa diunduh setelah simpan</p></div>
+                                </div>
+                            </div>
+                            <div class="data-card">
+                                <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Barang Diterima Hari Ini</h3></div>
+                                <div class="p-5" id="terimaHariIni"><p class="text-sm" style="color:var(--muted)">Belum ada barang hari ini</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Daftar Barang Section -->
+                <section class="page-section" id="page-daftar">
+                    <div class="data-card">
+                        <div class="p-5 border-b flex flex-wrap items-center justify-between gap-4" style="border-color:var(--border)">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <input type="text" class="form-input" style="width:240px" placeholder="Cari no service / pelanggan..." id="searchDaftar" oninput="renderDaftar()">
+                                <select class="form-input" style="width:160px" id="filterStatus" onchange="renderDaftar()">
+                                    <option value="">Semua Status</option>
+                                    <option value="masuk">Masuk</option>
+                                    <option value="diperiksa">Diperiksa</option>
+                                    <option value="proses">Dalam Proses</option>
+                                    <option value="selesai">Selesai</option>
+                                    <option value="diambil">Diambil</option>
+                                </select>
+                            </div>
+                            <button class="btn-primary" onclick="navigate('terima')"><i class="fas fa-plus"></i> Terima Barang Baru</button>
+                        </div>
+                        <div class="overflow-x-auto"><table><thead><tr><th>No. Service</th><th>Tanggal</th><th>Pelanggan</th><th>Barang</th><th>Type</th><th>No. Seri</th><th>Kelengkapan</th><th>Keluhan</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="daftarTable"></tbody></table></div>
+                    </div>
+                </section>
+
+                <!-- Pengambilan Section -->
+                <section class="page-section" id="page-pengambilan">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="data-card">
+                            <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Cari Barang</h3></div>
+                            <div class="p-5 space-y-4">
+                                <div><label class="form-label">Nomor Service</label><input type="text" class="form-input" id="cariNoService" placeholder="SVC-XXXXXXXX"></div>
+                                <button class="btn-primary w-full" onclick="cariPengambilan()"><i class="fas fa-search"></i> Cari</button>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <p class="text-xs mb-3 font-semibold" style="color:var(--muted)">Barang Siap Diambil</p>
+                                <div id="listSiapAmbil" class="space-y-2"></div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <div class="data-card mb-5" id="detailPengambilan" style="display:none"><div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Detail Service</h3></div><div class="p-5" id="detailAmbilContent"></div></div>
+                            <div class="data-card mb-5" id="formPengambilanCard" style="display:none">
+                                <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Form Pengambilan</h3></div>
+                                <form class="p-5 space-y-4" id="formAmbil" onsubmit="return prosesPengambilan(event)">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div><label class="form-label">Biaya Service (Rp)</label><input type="number" class="form-input" id="aBiaya" required min="0"></div>
+                                        <div><label class="form-label">Total Biaya Sparepart (Rp)</label><input type="number" class="form-input" id="aSparepart" value="0" min="0" readonly style="background:var(--card2);cursor:not-allowed"></div>
+                                    </div>
+                                    <div class="p-4 rounded-xl" style="background:var(--bg2);border:1px solid var(--border)">
+                                        <div class="flex items-center justify-between mb-3"><h4 class="text-sm font-semibold" style="color:var(--accent)"><i class="fas fa-puzzle-piece mr-2"></i>Sparepart Digunakan</h4><button type="button" class="btn-secondary btn-sm" onclick="tambahBarisSparepart()"><i class="fas fa-plus"></i> Tambah</button></div>
+                                        <div class="overflow-x-auto"><table><thead><tr><th style="background:transparent;padding:8px 6px;font-size:11px">Sparepart</th><th style="background:transparent;padding:8px 6px;font-size:11px">Harga</th><th style="background:transparent;padding:8px 6px;font-size:11px;width:70px">Stok</th><th style="background:transparent;padding:8px 6px;font-size:11px;width:80px">Qty</th><th style="background:transparent;padding:8px 6px;font-size:11px">Subtotal</th><th style="background:transparent;padding:8px 6px;font-size:11px;width:40px"></th></tr></thead><tbody id="sparepartPickerBody"><tr id="sparepartEmptyRow"><td colspan="6" class="text-center py-3 text-xs" style="color:var(--muted)">Klik "Tambah" untuk memilih sparepart</td></tr></tbody></table></div>
+                                    </div>
+                                    <div><label class="form-label">Catatan Teknisi</label><textarea class="form-input" id="aCatatan" rows="2" placeholder="Hasil perbaikan..."></textarea></div>
+                                    <div class="flex gap-3 flex-wrap">
+                                        <button type="submit" class="btn-primary"><i class="fas fa-hand-holding"></i> Proses Pengambilan</button>
+                                        <button type="button" class="btn-secondary" onclick="cetakStruk()"><i class="fas fa-print"></i> Cetak Struk</button>
+                                        <button type="button" class="btn-info" onclick="downloadStrukPDF()"><i class="fas fa-file-pdf"></i> Download PDF</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div id="strukContainer" style="display:none" class="data-card p-5 print-receipt"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Jenis & Biaya Section -->
+                <section class="page-section" id="page-jenis">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="data-card">
+                            <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Tambah Jenis Barang</h3></div>
+                            <form class="p-5 space-y-4" id="formJenis" onsubmit="return simpanJenis(event)">
+                                <div><label class="form-label">Nama Jenis Barang</label><input type="text" class="form-input" id="jNama" placeholder="Contoh: Televisi LED" required></div>
+                                <div><label class="form-label">Biaya Service Dasar (Rp)</label><input type="number" class="form-input" id="jBiaya" placeholder="0" required min="0"></div>
+                                <div><label class="form-label">Deskripsi</label><textarea class="form-input" id="jDeskripsi" rows="2" placeholder="Keterangan tambahan..."></textarea></div>
+                                <button type="submit" class="btn-primary w-full"><i class="fas fa-plus"></i> Simpan Jenis</button>
+                            </form>
+                        </div>
+                        <div class="lg:col-span-2 data-card">
+                            <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Daftar Jenis Barang & Biaya</h3></div>
+                            <div class="overflow-x-auto"><table><thead><tr><th>Nama Jenis</th><th>Biaya Dasar</th><th>Deskripsi</th><th>Aksi</th></tr></thead><tbody id="jenisTable"></tbody></table></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Stok Sparepart Section -->
+                <section class="page-section" id="page-stok">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="data-card">
+                            <div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Tambah Sparepart</h3></div>
+                            <form class="p-5 space-y-4" id="formStok" onsubmit="return simpanSparepart(event)">
+                                <div><label class="form-label">Nama Sparepart</label><input type="text" class="form-input" id="sNama" placeholder="Contoh: Kapasitor 450V" required></div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div><label class="form-label">Jumlah</label><input type="number" class="form-input" id="sJumlah" placeholder="0" required min="0"></div>
+                                    <div><label class="form-label">Harga (Rp)</label><input type="number" class="form-input" id="sHarga" placeholder="0" required min="0"></div>
+                                </div>
+                                <div><label class="form-label">Kategori</label><input type="text" class="form-input" id="sKategori" placeholder="Contoh: Kapasitor, IC, Kabel"></div>
+                                <button type="submit" class="btn-primary w-full"><i class="fas fa-plus"></i> Simpan Sparepart</button>
+                            </form>
+                        </div>
+                        <div class="lg:col-span-2 data-card">
+                            <div class="p-5 border-b flex items-center justify-between" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Daftar Stok Sparepart</h3><input type="text" class="form-input" style="width:200px" placeholder="Cari sparepart..." id="searchStok" oninput="renderStok()"></div>
+                            <div class="overflow-x-auto"><table><thead><tr><th>Nama</th><th>Kategori</th><th>Stok</th><th>Harga</th><th>Aksi</th></tr></thead><tbody id="stokTable"></tbody></table></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Riwayat Section -->
+                <section class="page-section" id="page-riwayat">
+                    <div class="data-card">
+                        <div class="p-5 border-b flex flex-wrap items-center justify-between gap-4" style="border-color:var(--border)">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <input type="date" class="form-input" style="width:170px" id="riwayatDari" onchange="renderRiwayat()">
+                                <span class="text-sm" style="color:var(--muted)">s/d</span>
+                                <input type="date" class="form-input" style="width:170px" id="riwayatSampai" onchange="renderRiwayat()">
+                                <input type="text" class="form-input" style="width:200px" placeholder="Cari..." id="searchRiwayat" oninput="renderRiwayat()">
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto"><table><thead><tr><th>No. Service</th><th>Tgl Masuk</th><th>Tgl Ambil</th><th>Pelanggan</th><th>Barang</th><th>Total Biaya</th><th>Struk</th></tr></thead><tbody id="riwayatTable"></tbody></table></div>
+                    </div>
+                </section>
+
+                <!-- Laporan Section -->
+                <section class="page-section" id="page-laporan">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6" id="laporanStats"></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+                        <div class="data-card"><div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Pendapatan Bulanan</h3></div><div class="p-5"><canvas id="monthlyChart" height="250"></canvas></div></div>
+                        <div class="data-card"><div class="p-5 border-b" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Jenis Barang Terbanyak</h3></div><div class="p-5"><canvas id="jenisChart" height="250"></canvas></div></div>
+                    </div>
+                    <div class="data-card">
+                        <div class="p-5 border-b flex items-center justify-between" style="border-color:var(--border)"><h3 class="font-semibold text-sm">Detail Laporan</h3><div class="flex gap-2"><input type="month" class="form-input" style="width:180px" id="laporanBulan" onchange="renderLaporan()"><button class="btn-primary btn-sm" onclick="exportLaporan()"><i class="fas fa-download"></i> Export</button></div></div>
+                        <div class="overflow-x-auto"><table><thead><tr><th>No</th><th>No. Service</th><th>Tanggal</th><th>Pelanggan</th><th>Barang</th><th>Biaya Service</th><th>Sparepart</th><th>Total</th></tr></thead><tbody id="laporanTable"></tbody></table></div>
+                        <div class="p-5 flex justify-end" id="laporanTotal"></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()"><div class="modal-box"><div class="p-5 border-b flex items-center justify-between" style="border-color:var(--border)"><h3 class="font-semibold" id="modalTitle">Edit</h3><button onclick="closeModal()" style="color:var(--muted);font-size:18px;background:none;border:none;cursor:pointer"><i class="fas fa-xmark"></i></button></div><div class="p-5" id="modalBody"></div></div></div>
+
+    <script>
+    // ===== FIREBASE CONFIG =====
+    // Note: Using the provided config. Ensure Firestore rules allow read/write.
+    const firebaseConfig={apiKey:"AIzaSyALL4Gow1dY0jW7Kf6R6DfyrW_WbaH5nXE",authDomain:"service-elektronik-41369.firebaseapp.com",projectId:"service-elektronik-41369",storageBucket:"service-elektronik-41369.firebasestorage.app",messagingSenderId:"356056353058",appId:"1:356056353058:web:befadc3180e8f33419bd7b"};
+    firebase.initializeApp(firebaseConfig);const db=firebase.firestore();
+
+    // ===== GLOBAL STATE =====
+    let currentPage='dashboard',allServices=[],allJenis=[],allSparepart=[],selectedAmbilId=null;
+    let revenueChartInstance=null,statusChartInstance=null,monthlyChartInstance=null,jenisChartInstance=null;
+    let sparepartRowCounter=0,savedSparepartDrafts={};
+    let isLoggedIn=false,currentUser=null;
+
+    // ===== AUTH & THEME =====
+    const USERS=[{username:'admin',password:'admin123',name:'Admin',role:'Operator'},{username:'teknisi',password:'teknisi123',name:'Teknisi',role:'Teknisi'}];
+
+    function handleLogin(e){
+        e.preventDefault();
+        const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value;
+        const found=USERS.find(x=>x.username===u&&x.password===p);
+        if(found){
+            isLoggedIn=true;currentUser=found;
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('appLayout').classList.add('show');
+            document.getElementById('userDisplayName').textContent=found.name;
+            document.getElementById('userAvatar').textContent=found.name.charAt(0).toUpperCase();
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('loginForm').reset();
+            init();
+        }else{
+            document.getElementById('loginError').classList.remove('hidden');
+        }
+        return false;
+    }
+
+    function handleLogout(){
+        if(!confirm('Yakin ingin keluar?'))return;
+        isLoggedIn=false;currentUser=null;selectedAmbilId=null;savedSparepartDrafts={};
+        document.getElementById('loginPage').classList.remove('hidden');
+        document.getElementById('appLayout').classList.remove('show');
+    }
+
+    function toggleTheme(){
+        const html=document.documentElement;
+        const current=html.getAttribute('data-theme');
+        const next=current==='dark'?'light':'dark';
+        html.setAttribute('data-theme',next);
+        localStorage.setItem('theme',next);
+    }
+
+    function loadTheme(){
+        const saved=localStorage.getItem('theme');
+        if(saved)document.documentElement.setAttribute('data-theme',saved);
+    }
+
+    // ===== UTILS =====
+    function formatRupiah(n){if(!n&&n!==0)return'Rp 0';return'Rp '+Number(n).toLocaleString('id-ID');}
+    function formatDate(ts){if(!ts)return'-';const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
+    function formatDateTime(ts){if(!ts)return'-';const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+    function generateNoService(){const n=new Date();return`SVC-${n.getFullYear().toString().slice(-2)}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}${String(n.getHours()).padStart(2,'0')}${String(n.getMinutes()).padStart(2,'0')}${String(n.getSeconds()).padStart(2,'0')}`;}
+    function showToast(m,t='success'){const c=document.getElementById('toastContainer'),ic={success:'fa-check-circle',error:'fa-exclamation-circle',info:'fa-info-circle'},e=document.createElement('div');e.className=`toast toast-${t}`;e.innerHTML=`<i class="fas ${ic[t]||ic.info}"></i> ${m}`;c.appendChild(e);setTimeout(()=>e.remove(),3000);}
+    function statusBadge(s){const l={masuk:'Masuk',diperiksa:'Diperiksa',proses:'Dalam Proses',selesai:'Selesai',diambil:'Diambil'};return`<span class="badge badge-${s}">${l[s]||s}</span>`;}
+    function openModal(t,b){document.getElementById('modalTitle').textContent=t;document.getElementById('modalBody').innerHTML=b;document.getElementById('modalOverlay').classList.add('show');}
+    function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
+
+    // ===== PDF GENERATION =====
+    function downloadBuktiTitip(sd){
+        const{jsPDF}=window.jspdf;
+        const doc=new jsPDF({unit:'mm',format:[80,200]});
+        const pW=80,mL=4,mR=4,cW=pW-mL-mR;let y=6;
+        const d=sd.tanggalMasuk?.toDate?sd.tanggalMasuk.toDate():new Date();
+        const tg=d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+        const jm=d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+        function ct(t,yp,s,st){doc.setFontSize(s);doc.setFont('helvetica',st==='bold'?'bold':'normal');const tw=doc.getTextWidth(t);doc.text(t,mL+(cW-tw)/2,yp);}
+        function dl(yp){doc.setLineDashPattern([1.5,1],0);doc.line(mL,yp,pW-mR,yp);doc.setLineDashPattern([],0);}
+        function af(l,v,yp,lw){doc.setFontSize(7);doc.setFont('helvetica','bold');doc.text(l,mL,yp);doc.setFont('helvetica','normal');const w=lw||22,ln=doc.splitTextToSize(v||'-',cW-w);doc.text(ln,mL+w,yp);return Math.max(4,ln.length*3.5);}
+        ct('SERVICE PRO',y,12,'bold');y+=5;ct('Service Elektronik Profesional',y,6,'normal');y+=4;ct('BUKTI TITIP BARANG',y,9,'bold');y+=6;dl(y);y+=4;y+=af('No. Service',sd.noService,y);y+=af('Tanggal',`${tg} ${jm}`,y);y+=2;dl(y);y+=4;doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('IDENTITAS PELANGGAN',mL,y);y+=5;[['Nama',sd.namaPelanggan],['Telepon',sd.noTelp],['Alamat',sd.alamat]].forEach(([l,v])=>{y+=af(l,v,y);});y+=2;dl(y);y+=4;doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('DATA BARANG',mL,y);y+=5;[['Jenis',sd.jenisBarang],['Merek',sd.merek],['Type',sd.typeBarang],['No. Seri',sd.noSeri],['Kelengkapan',sd.kelengkapan],['Keluhan',sd.keluhan]].forEach(([l,v])=>{y+=af(l,v,y,26);});y+=2;dl(y);y+=4;doc.setFontSize(7);doc.setFont('helvetica','bold');doc.text('Estimasi Biaya',mL,y);doc.setFont('helvetica','normal');doc.text(formatRupiah(sd.estimasiBiaya),mL+26,y);y+=6;dl(y);y+=5;doc.setFontSize(7);doc.setFont('helvetica','normal');doc.text('Petugas,',mL+2,y);doc.text('Pemilik,',mL+cW-25,y);y+=16;doc.text('(.................)',mL+2,y);doc.text('(.................)',mL+cW-25,y);y+=6;dl(y);y+=4;ct('Simpan bukti ini sebagai tanda penitipan',y,6,'normal');y+=3;ct('Barang yang tidak diambil lebih dari 30 hari',y,6,'normal');y+=3;ct('menjadi hak bengkel service.',y,6,'normal');doc.save(`Bukti_Titip_${sd.noService}.pdf`);showToast('Bukti titip berhasil diunduh');
+    }
+
+    function downloadStrukPDF(){
+        if(!selectedAmbilId){showToast('Pilih barang terlebih dahulu','error');return;}
+        const s=allServices.find(x=>x.id===selectedAmbilId);if(!s)return;
+        const bs=Number(document.getElementById('aBiaya').value)||0,bp=Number(document.getElementById('aSparepart').value)||0,ct2=document.getElementById('aCatatan').value.trim(),tl=bs+bp;
+        const{jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:[80,280]});const pW=80,mL=4,mR=4,cW=pW-mL-mR;let y=6;
+        const nw=new Date(),tg=nw.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}),jm=nw.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+        function cte(t,yp,s,st){doc.setFontSize(s);doc.setFont('helvetica',st==='bold'?'bold':'normal');const tw=doc.getTextWidth(t);doc.text(t,mL+(cW-tw)/2,yp);}
+        function dle(yp){doc.setLineDashPattern([1.5,1],0);doc.line(mL,yp,pW-mR,yp);doc.setLineDashPattern([],0);}
+        function afe(l,v,yp,lw){doc.setFontSize(7);doc.setFont('helvetica','bold');doc.text(l,mL,yp);doc.setFont('helvetica','normal');const w=lw||22,ln=doc.splitTextToSize(v||'-',cW-w);doc.text(ln,mL+w,yp);return Math.max(4,ln.length*3.5);}
+        cte('SERVICE PRO',y,12,'bold');y+=5;cte('Service Elektronik Profesional',y,6,'normal');y+=4;cte('STRUK PENGAMBILAN BARANG',y,8,'bold');y+=6;dle(y);y+=4;y+=afe('No. Service',s.noService,y);y+=afe('Tanggal',tg,y);y+=afe('Jam',jm,y);y+=2;dle(y);y+=4;doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('PELANGGAN',mL,y);y+=5;y+=afe('Nama',s.namaPelanggan,y);y+=afe('Telepon',s.noTelp||'-',y);y+=afe('Alamat',s.alamat||'-',y,22);y+=2;dle(y);y+=4;doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('BARANG',mL,y);y+=5;y+=afe('Jenis',s.jenisBarang,y);y+=afe('Merek',s.merek,y);y+=afe('Type',s.typeBarang||'-',y);y+=afe('No. Seri',s.noSeri||'-',y,22);y+=afe('Kelengkapan',s.kelengkapan||'-',y,22);y+=afe('Keluhan',s.keluhan||'-',y,22);if(ct2)y+=afe('Catatan',ct2,y,22);y+=2;dle(y);y+=4;
+        const rows=savedSparepartDrafts[selectedAmbilId]||[];if(rows.length>0&&rows.some(r=>r.sparepartId)){doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('SPAREPART',mL,y);y+=5;rows.forEach(row=>{const sp=allSparepart.find(x=>x.id===row.sparepartId);if(sp){const sub=Number(sp.harga)*row.qty;doc.setFontSize(7);doc.setFont('helvetica','normal');const nl=doc.splitTextToSize(`${sp.nama} x${row.qty}`,cW-22);doc.text(nl,mL,y);const ss=formatRupiah(sub);doc.text(ss,pW-mR-doc.getTextWidth(ss),y);y+=Math.max(4,nl.length*3.5);}});y+=2;dle(y);y+=4;}
+        doc.setFontSize(7);doc.setFont('helvetica','bold');doc.text('Biaya Service',mL,y);doc.setFont('helvetica','normal');const bs1=formatRupiah(bs);doc.text(bs1,pW-mR-doc.getTextWidth(bs1),y);y+=4;doc.setFont('helvetica','bold');doc.text('Biaya Sparepart',mL,y);doc.setFont('helvetica','normal');const bp1=formatRupiah(bp);doc.text(bp1,pW-mR-doc.getTextWidth(bp1),y);y+=5;dle(y);y+=4;doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('TOTAL',mL,y);const ts1=formatRupiah(tl);doc.text(ts1,pW-mR-doc.getTextWidth(ts1),y);y+=6;dle(y);y+=5;doc.setFontSize(7);doc.setFont('helvetica','normal');doc.text('Petugas,',mL+2,y);doc.text('Pemilik,',mL+cW-25,y);y+=16;doc.text('(.................)',mL+2,y);doc.text('(.................)',mL+cW-25,y);y+=6;dle(y);y+=4;cte('Terima kasih atas kepercayaan Anda',y,6,'normal');y+=3;cte('Barang yang telah diterima bukan tanggung jawab bengkel',y,5.5,'normal');doc.save(`Struk_${s.noService}.pdf`);showToast('Struk PDF berhasil diunduh');
+    }
+
+    function downloadStrukRiwayatPDF(id){
+        const s=allServices.find(x=>x.id===id);if(!s)return;
+        const bs=Number(s.biayaService||0),bp=Number(s.biayaSparepart||0),ct2=s.catatanTeknisi||'',tl=bs+bp;
+        const{jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:[80,280]});const pW=80,mL=4,mR=4,cW=pW-mL-mR;let y=6;
+        const dA=s.tanggalAmbil?.toDate?s.tanggalAmbil.toDate():new Date(),tg=dA.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}),jm=dA.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+        function cte(t,yp,s,st){doc.setFontSize(s);doc.setFont('helvetica',st==='bold'?'bold':'normal');const tw=doc.getTextWidth(t);doc.text(t,mL+(cW-tw)/2,yp);}
+        function dle(yp){doc.setLineDashPattern([1.5,1],0);doc.line(mL,yp,pW-mR,yp);doc.setLineDashPattern([],0);}
+        function afe(l,v,yp,lw){doc.setFontSize(7);doc.setFont('helvetica','bold');doc.text(l,mL,yp);doc.setFont('helvetica','normal');const w=lw||22,ln=doc.splitTextToSize(v||'-',cW-w);doc.text(ln,mL+w,yp);return Math.max(4,ln.length*3.5);}
+        cte('SERVICE PRO',y,12,'bold');y+=5;cte('Service Elektronik Profesional',y,6,'normal');y+=4;cte('STRUK PENGAMBILAN BARANG',y,8,'bold');y+=6;dle(y);y+=4;y+=afe('No. Service',s.noService,y);y+=afe('Tanggal',tg,y);y+=afe('Jam',jm,y);y+=2;dle(y);y+=4;doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('PELANGGAN',mL,y);y+=5;y+=afe('Nama',s.namaPelanggan,y);y+=afe('Telepon',s.noTelp||'-',y);y+=afe('Alamat',s.alamat||'-',y,22);y+=2;dle(y);y+=4;doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('BARANG',mL,y);y+=5;y+=afe('Jenis',s.jenisBarang,y);y+=afe('Merek',s.merek,y);y+=afe('Type',s.typeBarang||'-',y);y+=afe('No. Seri',s.noSeri||'-',y,22);y+=afe('Kelengkapan',s.kelengkapan||'-',y,22);y+=afe('Keluhan',s.keluhan||'-',y,22);if(ct2)y+=afe('Catatan',ct2,y,22);y+=2;dle(y);y+=4;
+        if(s.sparepartDigunakan&&s.sparepartDigunakan.length>0){doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('SPAREPART',mL,y);y+=5;s.sparepartDigunakan.forEach(sp=>{doc.setFontSize(7);doc.setFont('helvetica','normal');const nl=doc.splitTextToSize(`${sp.nama} x${sp.qty}`,cW-22);doc.text(nl,mL,y);const ss=formatRupiah(sp.subtotal);doc.text(ss,pW-mR-doc.getTextWidth(ss),y);y+=Math.max(4,nl.length*3.5);});y+=2;dle(y);y+=4;}
+        doc.setFontSize(7);doc.setFont('helvetica','bold');doc.text('Biaya Service',mL,y);doc.setFont('helvetica','normal');const bs1=formatRupiah(bs);doc.text(bs1,pW-mR-doc.getTextWidth(bs1),y);y+=4;doc.setFont('helvetica','bold');doc.text('Biaya Sparepart',mL,y);doc.setFont('helvetica','normal');const bp1=formatRupiah(bp);doc.text(bp1,pW-mR-doc.getTextWidth(bp1),y);y+=5;dle(y);y+=4;doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('TOTAL',mL,y);const ts1=formatRupiah(tl);doc.text(ts1,pW-mR-doc.getTextWidth(ts1),y);y+=6;dle(y);y+=5;doc.setFontSize(7);doc.setFont('helvetica','normal');doc.text('Petugas,',mL+2,y);doc.text('Pemilik,',mL+cW-25,y);y+=16;doc.text('(.................)',mL+2,y);doc.text('(.................)',mL+cW-25,y);y+=6;dle(y);y+=4;cte('Terima kasih atas kepercayaan Anda',y,6,'normal');y+=3;cte('Barang yang telah diterima bukan tanggung jawab bengkel',y,5.5,'normal');doc.save(`Struk_${s.noService}.pdf`);showToast('Struk PDF berhasil diunduh');
+    }
+
+    // ===== NAVIGASI & CORE =====
+    function navigate(page){
+        currentPage=page;
+        document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+        const section=document.getElementById(`page-${page}`);if(section)section.classList.add('active');
+        const navItem=document.querySelector(`.nav-item[data-page="${page}"]`);if(navItem)navItem.classList.add('active');
+        const titles={dashboard:'Dashboard',terima:'Terima Barang',daftar:'Daftar Barang Service',pengambilan:'Pengambilan Barang',jenis:'Jenis Barang & Biaya Service',stok:'Stok Sparepart',riwayat:'Riwayat Service',laporan:'Laporan'};document.getElementById('pageTitle').textContent=titles[page]||'Dashboard';document.getElementById('sidebar').classList.remove('open');
+        if(page==='dashboard')renderDashboard();
+        else if(page==='daftar')renderDaftar();
+        else if(page==='pengambilan')renderPengambilan();
+        else if(page==='jenis')renderJenis();
+        else if(page==='stok')renderStok();
+        else if(page==='riwayat')renderRiwayat();
+        else if(page==='laporan')renderLaporan();
+        else if(page==='terima')renderTerima();
+    }
+    async function loadAllData(){
+        try{
+            const[svcSnap,jenisSnap,spareSnap]=await Promise.all([db.collection('services').orderBy('tanggalMasuk','desc').get(),db.collection('jenisBarang').orderBy('nama').get(),db.collection('sparepart').orderBy('nama').get()]);
+            allServices=svcSnap.docs.map(d=>({id:d.id,...d.data()}));
+            allJenis=jenisSnap.docs.map(d=>({id:d.id,...d.data()}));
+            allSparepart=spareSnap.docs.map(d=>({id:d.id,...d.data()}));
+        }catch(err){console.error('Load error:',err);showToast('Gagal memuat data: '+err.message,'error');}
+    }
+
+    // ===== DASHBOARD RENDER =====
+    async function renderDashboard(){
+        await loadAllData();
+        const tM=allServices.length,tP=allServices.filter(s=>s.status==='proses').length,tS=allServices.filter(s=>s.status==='selesai').length,tD=allServices.filter(s=>s.status==='diambil'),pn=tD.reduce((a,s)=>a+(Number(s.biayaService||0)+Number(s.biayaSparepart||0)),0);
+        document.getElementById('dashStats').innerHTML=`
+            <div class="stat-card"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(6,182,212,0.15)"><i class="fas fa-boxes-stacked" style="color:#06B6D4"></i></div><span class="text-xs font-mono" style="color:var(--muted)">TOTAL</span></div><p class="text-2xl font-bold">${tM}</p><p class="text-xs mt-1" style="color:var(--muted)">Barang Diterima</p></div>
+            <div class="stat-card"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(245,158,11,0.15)"><i class="fas fa-gears" style="color:#F59E0B"></i></div><span class="text-xs font-mono" style="color:var(--muted)">AKTIF</span></div><p class="text-2xl font-bold">${tP}</p><p class="text-xs mt-1" style="color:var(--muted)">Dalam Proses</p></div>
+            <div class="stat-card"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(16,185,129,0.15)"><i class="fas fa-check-circle" style="color:#10B981"></i></div><span class="text-xs font-mono" style="color:var(--muted)">SELESAI</span></div><p class="text-2xl font-bold">${tS}</p><p class="text-xs mt-1" style="color:var(--muted)">Siap Diambil</p></div>
+            <div class="stat-card"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(99,102,241,0.15)"><i class="fas fa-wallet" style="color:#6366F1"></i></div><span class="text-xs font-mono" style="color:var(--muted)">PENDAPATAN</span></div><p class="text-2xl font-bold">${formatRupiah(pn)}</p><p class="text-xs mt-1" style="color:var(--muted)">Total Terkumpul</p></div>`;
+        
+        const rec=allServices.slice(0,5);
+        document.getElementById('dashRecentTable').innerHTML=rec.map(s=>`<tr><td><span class="font-mono text-xs">${s.noService}</span></td><td>${s.namaPelanggan}</td><td>${s.jenisBarang} ${s.merek}</td><td>${statusBadge(s.status)}</td><td>${formatDate(s.tanggalMasuk)}</td></tr>`).join('')||'<tr><td colspan="5" class="text-center text-xs py-4" style="color:var(--muted)">Belum ada data</td></tr>';
+        
+        updateCharts();
+    }
+
+    function updateCharts(){
+        const ctx1=document.getElementById('revenueChart').getContext('2d'),ctx2=document.getElementById('statusChart').getContext('2d');
+        if(revenueChartInstance)revenueChartInstance.destroy();
+        if(statusChartInstance)statusChartInstance.destroy();
+        const stCounts={masuk:0,diperiksa:0,proses:0,selesai:0,diambil:0};allServices.forEach(s=>{if(stCounts[s.status]!==undefined)stCounts[s.status]++});
+        
+        // Revenue Chart (Last 7 Days Logic)
+        const last7=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);last7.push(d.toISOString().split('T')[0]);}
+        const revData=last7.map(date=>allServices.filter(s=>s.status==='diambil' && new Date(s.tanggalAmbil?.toDate?.()||s.tanggalMasuk?.toDate?.()).toISOString().split('T')[0]===date).reduce((sum,s)=>sum+(Number(s.biayaService||0)+Number(s.biayaSparepart||0)),0));
+        
+        revenueChartInstance=new Chart(ctx1,{type:'line',data:{labels:last7.map(d=>d.slice(5)),datasets:[{label:'Pendapatan',data:revData,borderColor:'#10B981',backgroundColor:'rgba(16,185,129,0.1)',tension:0.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94A3B8'}},x:{grid:{display:false},ticks:{color:'#94A3B8'}}}}});
+        statusChartInstance=new Chart(ctx2,{type:'doughnut',data:{labels:['Masuk','Proses','Selesai','Diambil'],datasets:[{data:[stCounts.masuk,stCounts.proses,stCounts.selesai,stCounts.diambil],backgroundColor:['#06B6D4','#F59E0B','#10B981','#94A3B8'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#E2E8F0',boxWidth:12}}}}});
+    }
+
+    // ===== CRUD LOGIC: SERVICE =====
+    async function renderTerima(){
+        const sel=document.getElementById('tJenis');sel.innerHTML='<option value="">Pilih jenis barang</option>'+allJenis.map(j=>`<option value="${j.nama}">${j.nama} (${formatRupiah(j.biaya)})</option>`).join('');
+        const today=new Date().toISOString().split('T')[0];
+        const todayItems=allServices.filter(s=>s.tanggalMasuk?.toDate?.().toISOString().split('T')[0]===today);
+        document.getElementById('terimaHariIni').innerHTML=todayItems.length?todayItems.map(s=>`<div class="flex justify-between items-center text-xs py-1 border-b" style="border-color:rgba(255,255,255,0.1)"><span>${s.noService}</span> <span>${s.namaPelanggan}</span></div>`).join(''):'<p class="text-sm" style="color:var(--muted)">Belum ada barang hari ini</p>';
+    }
+    async function simpanTerima(e){
+        e.preventDefault();
+        const data={noService:generateNoService(),tanggalMasuk:firebase.firestore.FieldValue.serverTimestamp(),status:'masuk',namaPelanggan:document.getElementById('tNama').value,noTelp:document.getElementById('tTelp').value,alamat:document.getElementById('tAlamat').value,jenisBarang:document.getElementById('tJenis').value,merek:document.getElementById('tMerek').value,typeBarang:document.getElementById('tType').value,noSeri:document.getElementById('tSeri').value,keluhan:document.getElementById('tKeluhan').value,kelengkapan:document.getElementById('tKelengkapan').value,estimasiBiaya:Number(document.getElementById('tEstimasi').value)};
+        try{
+            const ref=await db.collection('services').add(data);
+            showToast('Barang berhasil diterima');
+            openModal('Sukses',`<div class="text-center"><p class="mb-4">No. Service: <b>${data.noService}</b></p><button class="btn-primary w-full" onclick='downloadBuktiTitip({${Object.entries(data).map(([k,v])=>`"${k}":"${v}"`).join(',')}}, "${ref.id}")'><i class="fas fa-download"></i> Download Bukti Titip</button><button class="btn-secondary w-full mt-2" onclick="closeModal()">Tutup</button></div>`);
+            // Need to handle the download properly with ID
+            // Re-fetch to get full data for PDF
+            const newDoc = await db.collection('services').doc(ref.id).get();
+            const fullData = {id: ref.id, ...newDoc.data()};
+            
+            // Update modal content with proper function call
+            document.getElementById('modalBody').innerHTML = `<div class="text-center"><p class="mb-4">No. Service: <b>${fullData.noService}</b></p><button class="btn-primary w-full" onclick="window.tempDownloadData = ${JSON.stringify(fullData)}; downloadBuktiTitip(window.tempDownloadData)"><i class="fas fa-download"></i> Download Bukti Titip</button><button class="btn-secondary w-full mt-2" onclick="closeModal()">Tutup</button></div>`;
+            
+            document.getElementById('formTerima').reset();renderTerima();
+        }catch(err){showToast('Gagal: '+err.message,'error');}
+        return false;
+    }
+    async function renderDaftar(){
+        const q=document.getElementById('searchDaftar').value.toLowerCase();const f=document.getElementById('filterStatus').value;
+        const filtered=allServices.filter(s=>(!q||s.noService.toLowerCase().includes(q)||s.namaPelanggan.toLowerCase().includes(q))&&(!f||s.status===f));
+        document.getElementById('daftarTable').innerHTML=filtered.map(s=>`<tr><td><span class="font-mono text-xs">${s.noService}</span></td><td>${formatDate(s.tanggalMasuk)}</td><td>${s.namaPelanggan}</td><td>${s.jenisBarang} ${s.merek}</td><td>${s.typeBarang}</td><td>${s.noSeri}</td><td>${s.kelengkapan}</td><td>${s.keluhan}</td><td>${statusBadge(s.status)}</td><td><div class="flex gap-1"><button class="btn-info-sm" onclick="updateStatus('${s.id}')" title="Update Status"><i class="fas fa-pen"></i></button><button class="btn-danger btn-sm" onclick="hapusService('${s.id}')" title="Hapus"><i class="fas fa-trash"></i></button></div></td></tr>`).join('')||'<tr><td colspan="10" class="text-center py-4 text-xs text-gray-500">Tidak ada data</td></tr>';
+    }
+    async function updateStatus(id){
+        const s=allServices.find(x=>x.id===id);
+        const steps=['masuk','diperiksa','proses','selesai'];
+        const currIdx=steps.indexOf(s.status);
+        if(currIdx===-1||currIdx===steps.length-1){showToast('Status sudah final/tidak dikenali','info');return;}
+        const next=steps[currIdx+1];
+        if(confirm(`Ubah status ${s.noService} dari ${s.status} ke ${next}?`)){
+            await db.collection('services').doc(id).update({status:next});showToast('Status diupdate');loadAllData();renderDaftar();
+        }
+    }
+    async function hapusService(id){
+        if(!confirm('Yakin hapus data ini?'))return;
+        await db.collection('services').doc(id).delete();showToast('Data dihapus');loadAllData();renderDaftar();
+    }
+
+    // ===== CRUD LOGIC: JENIS & STOK =====
+    async function renderJenis(){
+        document.getElementById('jenisTable').innerHTML=allJenis.map(j=>`<tr><td>${j.nama}</td><td>${formatRupiah(j.biaya)}</td><td>${j.deskripsi||'-'}</td><td><button class="btn-danger btn-sm" onclick="hapusJenis('${j.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+    }
+    async function simpanJenis(e){
+        e.preventDefault();
+        await db.collection('jenisBarang').add({nama:document.getElementById('jNama').value,biaya:Number(document.getElementById('jBiaya').value),deskripsi:document.getElementById('jDeskripsi').value});
+        showToast('Jenis barang tersimpan');document.getElementById('formJenis').reset();loadAllData();renderJenis();
+    }
+    async function hapusJenis(id){if(confirm('Hapus jenis ini?')){await db.collection('jenisBarang').doc(id).delete();loadAllData();renderJenis();}}
+
+    async function renderStok(){
+        const q=document.getElementById('searchStok').value.toLowerCase();
+        const f=allSparepart.filter(s=>!q||s.nama.toLowerCase().includes(q)||s.kategori.toLowerCase().includes(q));
+        document.getElementById('stokTable').innerHTML=f.map(s=>`<tr><td>${s.nama}</td><td>${s.kategori||'-'}</td><td><span class="${s.stok<5?'text-red-500 font-bold':''}">${s.stok}</span></td><td>${formatRupiah(s.harga)}</td><td><button class="btn-danger btn-sm" onclick="hapusSparepart('${s.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+    }
+    async function simpanSparepart(e){
+        e.preventDefault();
+        await db.collection('sparepart').add({nama:document.getElementById('sNama').value,stok:Number(document.getElementById('sJumlah').value),harga:Number(document.getElementById('sHarga').value),kategori:document.getElementById('sKategori').value});
+        showToast('Sparepart tersimpan');document.getElementById('formStok').reset();loadAllData();renderStok();
+    }
+    async function hapusSparepart(id){if(confirm('Hapus sparepart ini?')){await db.collection('sparepart').doc(id).delete();loadAllData();renderStok();}}
+
+    // ===== PENGAMBILAN LOGIC =====
+    async function renderPengambilan(){
+        const ready=allServices.filter(s=>s.status==='selesai');
+        document.getElementById('listSiapAmbil').innerHTML=ready.length?ready.map(s=>`<div class="p-2 rounded text-xs cursor-pointer hover:bg-white/5 flex justify-between" onclick="selectAmbil('${s.id}')"><span>${s.noService}</span><span>${s.namaPelanggan}</span></div>`).join(''):'<p class="text-xs text-gray-500">Tidak ada barang siap ambil.</p>';
+    }
+    async function cariPengambilan(){
+        const q=document.getElementById('cariNoService').value.trim();if(!q)return;
+        const s=allServices.find(x=>x.noService===q);if(!s){showToast('Data tidak ditemukan','error');return;}
+        if(s.status==='diambil'){showToast('Barang sudah diambil','info');return;}
+        selectAmbil(s.id);
+    }
+    async function selectAmbil(id){
+        selectedAmbilId=id;const s=allServices.find(x=>x.id===id);
+        document.getElementById('detailPengambilan').style.display='block';document.getElementById('formPengambilanCard').style.display='block';
+        document.getElementById('detailAmbilContent').innerHTML=`
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div><p class="text-xs text-gray-500">Pelanggan</p><p class="font-semibold">${s.namaPelanggan}</p></div>
+                <div><p class="text-xs text-gray-500">No. Service</p><p class="font-mono font-semibold">${s.noService}</p></div>
+                <div><p class="text-xs text-gray-500">Barang</p><p>${s.jenisBarang} ${s.merek}</p></div>
+                <div><p class="text-xs text-gray-500">Keluhan</p><p>${s.keluhan}</p></div>
+            </div>`;
+        document.getElementById('aBiaya').value=s.estimasiBiaya||0;
+        document.getElementById('sparepartPickerBody').innerHTML='<tr id="sparepartEmptyRow"><td colspan="6" class="text-center py-3 text-xs" style="color:var(--muted)">Klik "Tambah" untuk memilih sparepart</td></tr>';
+        savedSparepartDrafts[id]=[];updateSparepartTotal();
+    }
+    function tambahBarisSparepart(){
+        const tbody=document.getElementById('sparepartPickerBody');if(document.getElementById('sparepartEmptyRow'))document.getElementById('sparepartEmptyRow').remove();
+        const rid=sparepartRowCounter++;
+        const row=document.createElement('tr');row.id=`spr-${rid}`;
+        row.innerHTML=`
+            <td><select class="form-input py-1 px-2" onchange="updateSparepartRow('${rid}',this.value)"><option value="">Pilih...</option>${allSparepart.map(sp=>`<option value="${sp.id}">${sp.nama}</option>`).join('')}</select></td>
+            <td id="price-${rid}" class="text-xs">-</td>
+            <td id="stock-${rid}" class="text-xs">-</td>
+            <td><input type="number" min="1" value="1" class="form-input py-1 px-2" oninput="updateSparepartRow('${rid}',null,this.value)"></td>
+            <td id="sub-${rid}" class="text-xs">0</td>
+            <td><button type="button" class="text-red-500 hover:text-red-400" onclick="document.getElementById('spr-${rid}').remove();calcTotal()"><i class="fas fa-times"></i></button></td>`;
+        tbody.appendChild(row);
+    }
+    function updateSparepartRow(rid,spId,qtyVal){
+        const row=document.getElementById(`spr-${rid}`);if(!row)return;
+        const spIdVal=spId||row.querySelector('select').value;const qty=qtyVal||row.querySelector('input').value;
+        const sp=allSparepart.find(x=>x.id===spIdVal);
+        if(sp){document.getElementById(`price-${rid}`).textContent=formatRupiah(sp.harga);document.getElementById(`stock-${rid}`).textContent=sp.stok;document.getElementById(`sub-${rid}`).textContent=formatRupiah(sp.harga*qty);}else{document.getElementById(`price-${rid}`).textContent='-';document.getElementById(`sub-${rid}`).textContent='0';}
+        calcTotal();
+    }
+    function calcTotal(){
+        if(!selectedAmbilId)return;
+        let total=0;const rows=[];document.querySelectorAll('#sparepartPickerBody tr').forEach(tr=>{
+            if(tr.id==='sparepartEmptyRow')return;
+            const sel=tr.querySelector('select'),inp=tr.querySelector('input');
+            if(sel.value){const sp=allSparepart.find(x=>x.id===sel.value);if(sp){const sub=sp.harga*Number(inp.value);total+=sub;rows.push({sparepartId:sp.id,nama:sp.nama,qty:Number(inp.value),subtotal:sub});}}
+        });
+        savedSparepartDrafts[selectedAmbilId]=rows;document.getElementById('aSparepart').value=total;
+    }
+    function updateSparepartTotal(){calcTotal();}
+    async function prosesPengambilan(e){
+        e.preventDefault();if(!selectedAmbilId)return;
+        const bs=Number(document.getElementById('aBiaya').value);const bp=Number(document.getElementById('aSparepart').value);const ct=document.getElementById('aCatatan').value;
+        const draft=savedSparepartDrafts[selectedAmbilId]||[];
+        
+        // Update Service
+        await db.collection('services').doc(selectedAmbilId).update({status:'diambil',tanggalAmbil:firebase.firestore.FieldValue.serverTimestamp(),biayaService:bs,biayaSparepart:bp,catatanTeknisi:ct,sparepartDigunakan:draft});
+        
+        // Reduce Stock
+        for(const row of draft){
+            const sp=allSparepart.find(x=>x.id===row.sparepartId);
+            if(sp && sp.stok>=row.qty){
+                await db.collection('sparepart').doc(sp.id).update({stok:sp.stok-row.qty});
+            }
+        }
+        showToast('Pengambilan berhasil diproses');selectedAmbilId=null;document.getElementById('detailPengambilan').style.display='none';document.getElementById('formPengambilanCard').style.display='none';document.getElementById('cariNoService').value='';loadAllData();renderPengambilan();return false;
+    }
+    function cetakStruk(){window.print();}
+
+    // ===== RIWAYAT & LAPORAN =====
+    async function renderRiwayat(){
+        const d1=document.getElementById('riwayatDari').value;const d2=document.getElementById('riwayatSampai').value;const q=document.getElementById('searchRiwayat').value.toLowerCase();
+        let hist=allServices.filter(s=>s.status==='diambil');
+        if(d1)hist=hist.filter(s=>new Date(s.tanggalAmbil?.toDate?.())>=new Date(d1));
+        if(d2)hist=hist.filter(s=>new Date(s.tanggalAmbil?.toDate?.())<=new Date(d2));
+        if(q)hist=hist.filter(s=>s.noService.toLowerCase().includes(q)||s.namaPelanggan.toLowerCase().includes(q));
+        document.getElementById('riwayatTable').innerHTML=hist.map(s=>{const ttl=Number(s.biayaService||0)+Number(s.biayaSparepart||0);return`<tr><td>${s.noService}</td><td>${formatDate(s.tanggalMasuk)}</td><td>${formatDate(s.tanggalAmbil)}</td><td>${s.namaPelanggan}</td><td>${s.jenisBarang}</td><td>${formatRupiah(ttl)}</td><td><button class="btn-info-sm" onclick='downloadStrukRiwayatPDF("${s.id}")'><i class="fas fa-file-pdf"></i></button></td></tr>`;}).join('')||'<tr><td colspan="7" class="text-center py-4 text-xs text-gray-500">Tidak ada riwayat</td></tr>';
+    }
+    async function renderLaporan(){
+        const m=document.getElementById('laporanBulan').value;if(!m)return;
+        const filtered=allServices.filter(s=>s.tanggalMasuk?.toDate?.().toISOString().slice(0,7)===m);
+        const tSvc=filtered.reduce((a,s)=>a+(Number(s.biayaService)||0),0);tSpt=filtered.reduce((a,s)=>a+(Number(s.biayaSparepart)||0),0);tTot=tSvc+tSpt;
+        document.getElementById('laporanStats').innerHTML=`<div class="stat-card"><p class="text-xs text-gray-500">Total Transaksi</p><p class="text-xl font-bold">${filtered.length}</p></div><div class="stat-card"><p class="text-xs text-gray-500">Jasa Service</p><p class="text-xl font-bold">${formatRupiah(tSvc)}</p></div><div class="stat-card"><p class="text-xs text-gray-500">Penjualan Sparepart</p><p class="text-xl font-bold">${formatRupiah(tSpt)}</p></div><div class="stat-card"><p class="text-xs text-gray-500">Total Pendapatan</p><p class="text-xl font-bold">${formatRupiah(tTot)}</p></div>`;
+        document.getElementById('laporanTable').innerHTML=filtered.map((s,i)=>{const ttl=Number(s.biayaService||0)+Number(s.biayaSparepart||0);return`<tr><td>${i+1}</td><td>${s.noService}</td><td>${formatDate(s.tanggalMasuk)}</td><td>${s.namaPelanggan}</td><td>${s.jenisBarang} ${s.merek}</td><td>${formatRupiah(s.biayaService)}</td><td>${formatRupiah(s.biayaSparepart)}</td><td>${formatRupiah(ttl)}</td></tr>`;}).join('');
+        document.getElementById('laporanTotal').innerHTML=`<h3 class="font-bold">Total: ${formatRupiah(tTot)}</h3>`;
+        
+        // Charts for reports
+        const ctx3=document.getElementById('monthlyChart').getContext('2d'),ctx4=document.getElementById('jenisChart').getContext('2d');
+        if(monthlyChartInstance)monthlyChartInstance.destroy();if(jenisChartInstance)jenisChartInstance.destroy();
+        monthlyChartInstance=new Chart(ctx3,{type:'bar',data:{labels:filtered.map(s=>s.noService.slice(-4)),datasets:[{label:'Pendapatan',data:filtered.map(s=>Number(s.biayaService||0)+Number(s.biayaSparepart||0)),backgroundColor:'#10B981'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
+        
+        const jCounts={};filtered.forEach(s=>{jCounts[s.jenisBarang]=(jCounts[s.jenisBarang]||0)+1});
+        jenisChartInstance=new Chart(ctx4,{type:'pie',data:{labels:Object.keys(jCounts),datasets:[{data:Object.values(jCounts),backgroundColor:['#06B6D4','#F59E0B','#10B981','#6366F1','#EC4899']}]},options:{responsive:true,maintainAspectRatio:false}});
+    }
+    function exportLaporan(){
+        showToast('Fitur Export CSV disimulasikan (File dummy dibuat)', 'info');
+        // Real implementation would create a Blob from table data
+    }
+
+    // ===== INIT =====
+    function init(){
+        loadTheme();
+        renderDashboard();
+        setInterval(()=>{document.getElementById('clockDisplay').textContent=new Date().toLocaleTimeString('id-ID');},1000);
+    }
+    // Initialize theme on load
+    loadTheme();
+    </script>
+</body>
+</html>
