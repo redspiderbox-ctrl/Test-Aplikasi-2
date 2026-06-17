@@ -253,7 +253,6 @@
     function handleLogout(){
         if(!confirm('Yakin ingin keluar?'))return;
         isLoggedIn=false;currentUser=null;selectedAmbilId=null;savedSparepartDrafts={};
-        // Unsubscribe all listeners
         if(unsubscribeServices) unsubscribeServices();
         if(unsubscribeJenis) unsubscribeJenis();
         if(unsubscribeSparepart) unsubscribeSparepart();
@@ -276,20 +275,17 @@
 
     // ===== REALTIME LISTENERS =====
     function initRealtimeListeners() {
-        // Services listener - order by tanggalMasuk descending
         if(unsubscribeServices) unsubscribeServices();
         unsubscribeServices = db.collection('services')
             .orderBy('tanggalMasuk', 'desc')
             .onSnapshot((snapshot) => {
                 allServices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Re-render current page
                 refreshCurrentPage();
             }, (error) => {
                 console.error('Services listener error:', error);
                 showToast('Gagal memuat data service: ' + error.message, 'error');
             });
 
-        // Jenis listener
         if(unsubscribeJenis) unsubscribeJenis();
         unsubscribeJenis = db.collection('jenisBarang')
             .orderBy('nama')
@@ -300,7 +296,6 @@
                 console.error('Jenis listener error:', error);
             });
 
-        // Sparepart listener
         if(unsubscribeSparepart) unsubscribeSparepart();
         unsubscribeSparepart = db.collection('sparepart')
             .orderBy('nama')
@@ -370,7 +365,7 @@
     function saveSparepartDraft(){if(!selectedAmbilId)return;savedSparepartDrafts[selectedAmbilId]=sparepartRows.map(r=>({rowId:r.rowId,sparepartId:r.sparepartId,qty:r.qty}));}
     function renderSparepartPicker(){const tbody=document.getElementById('sparepartPickerBody');if(sparepartRows.length===0){tbody.innerHTML=`<tr id="sparepartEmptyRow"><td colspan="6" class="text-center py-3 text-xs" style="color:var(--muted)">Klik "Tambah" untuk memilih sparepart</td></tr>`;return;}const av=allSparepart.filter(s=>Number(s.jumlah)>0);tbody.innerHTML=sparepartRows.map(row=>{const sp=allSparepart.find(s=>s.id===row.sparepartId);const h=sp?Number(sp.harga):0,st=sp?Number(sp.jumlah):0,sub=h*row.qty,w=sp&&row.qty>st;const opts=av.map(s=>`<option value="${s.id}" ${s.id===row.sparepartId?'selected':''}>${s.nama} (Stok: ${s.jumlah})</option>`).join('');return`<tr><td style="padding:4px 4px"><select class="form-input" style="font-size:12px;padding:6px 8px;min-width:140px" onchange="onSparepartSelect(${row.rowId},this.value)"><option value="">-- Pilih --</option>${opts}</select></td><td style="padding:4px 4px"><span class="font-mono text-xs" style="color:${sp?'var(--accent)':'var(--muted)'}">${sp?formatRupiah(h):'-'}</span></td><td style="padding:4px 4px"><span class="font-mono text-xs" style="color:${w?'var(--danger)':'var(--text)'}">${sp?st:'-'}</span></td><td style="padding:4px 4px"><input type="number" class="form-input" style="font-size:12px;padding:5px 8px;width:70px;text-align:center" value="${row.qty}" min="1" max="${st||999}" onchange="onQtyChange(${row.rowId},this.value)" ${!sp?'disabled':''}></td><td style="padding:4px 4px"><span class="font-mono text-xs font-bold" style="color:var(--accent2)">${sp?formatRupiah(sub):'-'}</span></td><td style="padding:4px 4px;text-align:center"><button type="button" class="btn-danger btn-sm" style="padding:4px 8px" onclick="hapusBarisSparepart(${row.rowId})"><i class="fas fa-times"></i></button></td></tr>`;}).join('');}
     function hitungTotalSparepart(){let t=0;sparepartRows.forEach(r=>{const sp=allSparepart.find(s=>s.id===r.sparepartId);if(sp)t+=Number(sp.harga)*r.qty;});document.getElementById('aSparepart').value=t;}
-    async function prosesPengambilan(e){e.preventDefault();if(!selectedAmbilId)return;const ur=sparepartRows.find(r=>!r.sparepartId);if(ur){showToast('Pilih sparepart terlebih dahulu atau hapus baris kosong','error');return;}for(const row of sparepartRows){const sp=allSparepart.find(s=>s.id===row.sparepartId);if(sp&&row.qty>Number(sp.jumlah)){showToast(`Stok "${sp.nama}" tidak mencukupi`,'error');return;}}const bs=Number(document.getElementById('aBiaya').value)||0,bp=Number(document.getElementById('aSparepart').value)||0,ct=document.getElementById('aCatatan').value.trim();try{await db.collection('services').doc(selectedAmbilId).update({status:'diambil',biayaService:bs,biayaSparepart:bp,catatanTeknisi:ct,tanggalAmbil:firebase.firestore.FieldValue.serverTimestamp(),sparepartDigunakan:sparepartRows.map(r=>{const sp=allSparepart.find(s=>s.id===r.sparepartId);return{sparepartId:r.sparepartId,nama:sp?sp.nama:'Unknown',qty:r.qty,harga:sp?Number(sp.harga):0,subtotal:sp?Number(sp.harga)*r.qty:0};})});const batch=db.batch();for(const row of sparepartRows){const sp=allSparepart.find(s=>s.id===row.sparepartId);if(sp){batch.update(db.collection('sparepart').doc(row.sparepartId),{jumlah:Math.max(0,Number(sp.jumlah)-row.qty)});}}await batch.commit();delete savedSparepartDrafts[selectedAmbilId];selectedAmbilId=null;showToast('Barang berhasil diambil!');}catch(err){showToast('Gagal: '+err.message,'error');}return false;}
+    async function prosesPengambilan(e){e.preventDefault();if(!selectedAmbilId)return;const ur=sparepartRows.find(r=>!r.sparepartId);if(ur){showToast('Pilih sparepart terlebih dahulu atau hapus baris kosong','error');return;}for(const row of sparepartRows){const sp=allSparepart.find(s=>s.id===row.sparepartId);if(sp&&row.qty>Number(sp.jumlah)){showToast(`Stok "${sp.nama}" tidak mencukupi`,'error');return;}}const bs=Number(document.getElementById('aBiaya').value)||0,bp=Number(document.getElementById('aSparepart').value)||0,ct=document.getElementById('aCatatan').value.trim();try{await db.collection('services').doc(selectedAmbilId).update({status:'diambil',biayaService:bs,biayaSparepart:bp,catatanTeknisi:ct,tanggalAmbil:firebase.firestore.FieldValue.serverTimestamp(),sparepartDigunakan:sparepartRows.map(r=>{const sp=allSparepart.find(s=>s.id===r.sparepartId);return{sparepartId:r.sparepartId,nama:sp?sp.nama:'Unknown',qty:r.qty,harga:sp?Number(sp.harga):0,subtotal:sp?Number(sp.harga)*r.qty:0};})});const batch=db.batch();for(const row of sparepartRows){const sp=allSparepart.find(s=>s.id===row.sparepartId);if(sp){const newStok=Math.max(0,Number(sp.jumlah)-row.qty);batch.update(db.collection('sparepart').doc(row.sparepartId),{jumlah:newStok});}}await batch.commit();delete savedSparepartDrafts[selectedAmbilId];selectedAmbilId=null;showToast('Barang berhasil diambil! Stok sparepart berkurang secara realtime');}catch(err){showToast('Gagal: '+err.message,'error');}return false;}
     function cetakStruk(){if(!selectedAmbilId)return;const s=allServices.find(x=>x.id===selectedAmbilId);if(!s)return;const b=Number(document.getElementById('aBiaya').value)||0,sp=Number(document.getElementById('aSparepart').value)||0,t=b+sp;let sd='';const rows=savedSparepartDrafts[selectedAmbilId]||[];if(rows.length>0){sd='<div class="divider"></div><p style="font-weight:bold;margin-bottom:4px">Sparepart:</p>';rows.forEach(row=>{const s2=allSparepart.find(x=>x.id===row.sparepartId);if(s2)sd+=`<p>- ${s2.nama} x${row.qty} = ${formatRupiah(Number(s2.harga)*row.qty)}</p>`;});}const container=document.getElementById('strukContainer');container.style.display='block';container.innerHTML=`<div class="receipt-box" id="receiptContent"><h3>SERVICE PRO</h3><p style="text-align:center;font-size:10px;color:#666">Service Elektronik Profesional</p><div class="divider"></div><p>No : ${s.noService}</p><p>Tgl: ${new Date().toLocaleDateString('id-ID')}</p><div class="divider"></div><p>Pelanggan: ${s.namaPelanggan}</p><p>Alamat   : ${s.alamat||'-'}</p><p>Barang   : ${s.jenisBarang}</p><p>Merek    : ${s.merek}</p><p>Type     : ${s.typeBarang||'-'}</p><p>No. Seri : ${s.noSeri||'-'}</p><p>Kelengkapan: ${s.kelengkapan||'-'}</p><p>Keluhan  : ${s.keluhan}</p>${sd}<div class="divider"></div><p>Biaya Service  : ${formatRupiah(b)}</p><p>Biaya Sparepart: ${formatRupiah(sp)}</p><div class="divider"></div><p style="font-size:14px;font-weight:bold">TOTAL: ${formatRupiah(t)}</p><div class="divider"></div><p style="text-align:center;font-size:10px;color:#666">Terima kasih atas kepercayaan Anda</p></div><div class="mt-4 text-center no-print"><button class="btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Cetak</button></div>`;}
 
     // ===== JENIS BARANG =====
@@ -404,7 +399,6 @@
     function initApp(){const nw=new Date();document.getElementById('laporanBulan').value=`${nw.getFullYear()}-${String(nw.getMonth()+1).padStart(2,'0')}`;document.getElementById('riwayatDari').value=`${nw.getFullYear()}-${String(nw.getMonth()+1).padStart(2,'0')}-01`;}
 
     loadTheme();
-    // App will be initialized after login via initRealtimeListeners
     </script>
 </body>
 </html>
